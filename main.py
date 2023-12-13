@@ -1,5 +1,4 @@
 from fabric import Connection,Config
-import paramiko
 from getpass import getpass
 import os
 import argparse
@@ -23,13 +22,13 @@ class SSH_connection:
         self.path = "/home/user/Bureau/"
         self.shell = "test.sh"
         # pour le 'put()'
-        self.remote_path_common_files = "/home/user/Bureau/dossier-commun/"
         self.local_files = os.path.join('caca.txt')
+        self.remote_path_common_files = "/home/user/Bureau/dossier-commun/"
 
         # pour le 'get()'
-        self.remote_file = "oui.txt"
-        self.local_path_common_files = r"C:\Users\pc\Desktop"
-        #self.local_path_common_files = r"C:\Users\pc\OneDrive - EPHEC asbl\Bureau\dossier-commun"
+        self.remote_file = "/home/user/Bureau/dossier-commun/oui.txt"
+        #self.local_path_common_files = r"C:\Users\pc\OneDrive - EPHEC asbl\Bureau\Cours\Cours 2ème\Dev 2\TLCA-Interro-devoirs\Script-en-ligne-de-commande\Script-en-ligne-de-commandes-Connection-SSH\dossier-commun"
+        #self.local_path_common_files = os.path.join(os.getcwd(), 'dossier-commun')
 
 
 
@@ -78,21 +77,19 @@ class SSH_connection:
         self.vrai = False
 
     def get_files(self, c):
-        """
         try:
-            with c.cd("/home/user/Bureau/dossier-commun"):
-                c.get(self.remote_path_common_files, self.local_path_common_files)
+            c.get(self.remote_file, local=None, preserve_mode=True)
             print("Allez voir votre dossier")
         except OSError as o:
-            print(f"Erreur lors du téléchargement : {o}")"""
+            print(f"Erreur lors du téléchargement : {o}")
+
 
 
     def send_files(self, c):
-        """
         try:
-            c.put(self.local_path_common_files, self.remote_path_common_files)
+            c.put(self.local_files, self.remote_path_common_files)
         except OSError as o:
-            print(f"Erreur lors du téléchargement : {o}")"""
+            print(f"Erreur lors du téléchargement : {o}")
 
 
     def run(self):
