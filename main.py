@@ -22,11 +22,12 @@ class SSH_connection:
         self.path = "/home/user/Bureau/"
         self.shell = "test.sh"
         # pour le 'put()'
-        self.local_files = os.path.join('caca.txt')
+        #self.local_files = os.path.join('file_from_Windows.txt')
         self.remote_path_common_files = "/home/user/Bureau/dossier-commun/"
 
         # pour le 'get()'
-        self.remote_file = "/home/user/Bureau/dossier-commun/oui.txt"
+        #self.remote_file = "/home/user/Bureau/dossier-commun/file_from_Linux.txt"
+        self.remote_path = "/home/user/Bureau/dossier-commun/"
         #self.local_path_common_files = r"C:\Users\pc\OneDrive - EPHEC asbl\Bureau\Cours\Cours 2ème\Dev 2\TLCA-Interro-devoirs\Script-en-ligne-de-commande\Script-en-ligne-de-commandes-Connection-SSH\dossier-commun"
         #self.local_path_common_files = os.path.join(os.getcwd(), 'dossier-commun')
 
@@ -69,27 +70,103 @@ class SSH_connection:
 
     def running_shell(self, c, pth, sh):
         print(f"En cours de récupération des données système de la machine distante...")
-        # resultat = c.run(f"cd {pth} && ./{sh}", pty=True)
-        resultat = c.run(f"cd {pth} && ./{sh}", hide="stdout")
+        result = c.run(f"cd {pth} && ./{sh}", hide="stdout")
         self.clear()
-        print(resultat.stdout)
-
+        print(result.stdout)
         self.vrai = False
 
-    def get_files(self, c):
+
+    # Après utilisationde la fonction get()
+    def put_all_files_in(self):
+        # Définir le répertoire courant
+        current_rep = os.getcwd()
+
+        # Créer le dossier 'dossier-commun' s'il n'existe pas encore
+        dossier_commun = os.path.join(current_rep, 'dossier-commun')
+        if not os.path.exists(dossier_commun):
+            os.makedirs(dossier_commun)
+            print(f"Le dossier '{dossier_commun}' a été créé.")
+
+        # Liste des fichiers et dossiers à exclure
+        exclusions = {'main.py', '.idea', '.git', 'dossier-commun'}
+
+        # Parcourir tous les fichiers du répertoire courant
+        for file in os.listdir(current_rep):
+            file_path = os.path.join(current_rep, file)
+
+            # Vérifier si le fichier ne fait pas partie des exclusions
+            if file not in exclusions:
+                # Déplacer le fichier vers le dossier 'dossier-commun'
+                destination = os.path.join(dossier_commun, file)
+                os.rename(file_path, destination)
+                print(f"Le fichier '{file}' a été déplacé vers '{dossier_commun}'.")
+
+    # Lorsque la fonction put() est appelée
+    def get_all_files_in(self):
+        # Définir le répertoire courant
+        current_rep = os.getcwd()
+
+        # Dossier 'dossier-commun'
+        dossier_commun = os.path.join(current_rep, 'dossier-commun')
+
+        # Vérifier si le dossier 'dossier-commun' existe
+        if os.path.exists(dossier_commun) and os.path.isdir(dossier_commun):
+            # Parcourir tous les fichiers du dossier 'dossier-commun'
+            for file in os.listdir(dossier_commun):
+                file_path = os.path.join(dossier_commun, file)
+
+                # Déplacer le fichier vers le répertoire courant
+                destination = os.path.join(current_rep, file)
+                os.rename(file_path, destination)
+                print(f"Le fichier '{file}' a été déplacé vers '{current_rep}'.")
+        else:
+            print(f"Le dossier '{dossier_commun}' n'existe pas.")
+
+    def get_files(self, c, remote_file):
         try:
-            c.get(self.remote_file, local=None, preserve_mode=True)
+            c.get(f"/home/user/Bureau/dossier-commun/{remote_file}", local=None, preserve_mode=True)
             print("Allez voir votre dossier")
+            self.put_all_files_in()
         except OSError as o:
             print(f"Erreur lors du téléchargement : {o}")
 
 
-
-    def send_files(self, c):
+    def send_files(self, c, local_files):
         try:
-            c.put(self.local_files, self.remote_path_common_files)
+            c.put(local_files, self.remote_path_common_files)
         except OSError as o:
             print(f"Erreur lors du téléchargement : {o}")
+
+
+    def iterative_send_files(self, c):
+        self.get_all_files_in()
+
+        # Définir le répertoire courant
+        current_rep = os.getcwd()
+
+        # Liste des fichiers et dossiers à exclure
+        exclusions = {'main.py', '.idea', '.git', 'dossier-commun'}
+
+        # Parcourir tous les fichiers du répertoire courant
+        for file in os.listdir(current_rep):
+            chemin_fichier = os.path.join(current_rep, file)
+            # Vérifier si le fichier ne fait pas partie des exclusions
+            if file not in exclusions:
+                # Déplacer le fichier vers le dossier 'dossier-commun'
+                self.send_files(c, file)
+                print(f"Le fichier {file} a été ajouté dans la VM")
+
+        self.put_all_files_in()
+
+    def iterative_get_files(self, c, remote_path):
+        result = c.run(f"ls {remote_path}", hide=True)
+
+        list_files = result.stdout.split()
+
+        for file in list_files:
+            self.get_files(c, file)
+
+        self.put_all_files_in()
 
 
     def run(self):
@@ -120,11 +197,11 @@ class SSH_connection:
                     self.menu_main(conn)
                     if self.the_choice == self.choice[0]:
                         print("Tu veux Récup des fichiers ? ")
-                        self.get_files(conn)
+                        self.iterative_get_files(conn, self.remote_path)
                         self.vrai = False
                     elif self.the_choice == self.choice[1]:
                         print("AAAAAh tu veux envoyer des fichiers sur l'autre")
-                        self.send_files(conn)
+                        self.iterative_send_files(conn)
                         self.vrai = False
                     elif self.the_choice == self.choice[2]:
                         self.vrai = False
