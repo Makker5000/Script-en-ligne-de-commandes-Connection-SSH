@@ -2,15 +2,11 @@ from fabric import Connection,Config
 from getpass import getpass
 import os
 import argparse
+import time
 
-class SSH_connection:
+
+class SSHConnection:
     def __init__(self):
-        # Remplacez ces valeurs par les informations de connexion appropriées
-        """
-        self.host = '192.168.10.133'
-        self.user = 'user'
-        self.password = 'user123'
-        """
         self.host = ''
         self.user = ''
         self.password = ''
@@ -20,35 +16,42 @@ class SSH_connection:
         self.vrai = True
         self.default = False
         self.path = "/home/user/Bureau/"
+        self.path_for_shell = "/home/user/Bureau/"
         self.shell = "test.sh"
-        # pour le 'put()'
-        #self.local_files = os.path.join('file_from_Windows.txt')
         self.remote_path_common_files = "/home/user/Bureau/dossier-commun/"
-
-        # pour le 'get()'
-        #self.remote_file = "/home/user/Bureau/dossier-commun/file_from_Linux.txt"
-        self.remote_path = "/home/user/Bureau/dossier-commun/"
-        #self.local_path_common_files = r"C:\Users\pc\OneDrive - EPHEC asbl\Bureau\Cours\Cours 2ème\Dev 2\TLCA-Interro-devoirs\Script-en-ligne-de-commande\Script-en-ligne-de-commandes-Connection-SSH\dossier-commun"
-        #self.local_path_common_files = os.path.join(os.getcwd(), 'dossier-commun')
-
-
-
-    def __str__(self):
-        pass
+        self.path_to_local_file = ""
 
     def default_values(self):
+        """
+        Fonction ayant les informations de connexion par défaut. Si pas de paramètre passé lors de
+        l'éxécution du programme
+        :PRE: -
+        :POST: -
+        """
         self.host = '192.168.10.133'
         self.user = 'user'
         self.password = 'user123'
 
-    def clear(self):
+    @staticmethod
+    def clear() -> None:
+        """
+        Fonction qui efface l'écran de la console
+        :PRE: -
+        :POST: -
+        """
         os.system('cls')
 
     def menu_connection(self):
+        """
+        Fonction qui va afficher le menu de connection si jamais l'utilisateur a lancé le programme
+        avec le paramètre adéquat pour se connecter manuellement
+        :PRE: -
+        :POST: -
+        """
         self.clear()
-        #print(f"Bienvenu dans le programme se connectant en SSH\n")
         if self.default:
-            print("Vous avez décidé de vous connecter a la machine par défaut...")
+            print("Vous avez décidé de vous connecter à la machine par défaut...")
+            time.sleep(2)
             self.default_values()
         else:
             print("Vous avez décidé de vous connecter en manuel")
@@ -56,10 +59,73 @@ class SSH_connection:
             self.user = input("> Votre Username : ")
             self.password = getpass("> Et votre mot de passe : ")
 
+    def creation_and_checking_common_file(self, c):
+        """
+        Fonction qui vérifie si le dossier 'dossier-commun' existe sur la machine hôte et sur la machine distante.
+        Si jamais il n'existe pas sur une des deux machines ou bien les deux alors il créer le dossier.
+        :PRE: - c : L'instance de connection SSH de l'objet 'Connection' provenant de la librairie 'Fabric'
+        :POST: -
+        """
+        # Déterminer si le bureau est en français ou en anglais
+        if os.path.exists(os.path.join(os.path.expanduser('~'), 'Bureau')):
+            bureau_desktop = '/Bureau'
+        elif os.path.exists(os.path.join(os.path.expanduser('~'), 'Desktop')):
+            bureau_desktop = '/Desktop'
+        else:
+            print("Impossible de déterminer le chemin du bureau.")
+            return
+
+        name_of_file = "dossier-commun"
+        self.path_to_local_file = os.path.join(os.getcwd(), name_of_file)
+        # Vérifier sur l'hôte local
+        if not os.path.exists(self.path_to_local_file):
+            os.makedirs(self.path_to_local_file)
+            print(f"Le dossier '{self.path_to_local_file}' a été créé sur l'hôte local.")
+
+        def determine_desktop():
+            """
+            Fonction qui va déterminer si le système d'exploitation de la
+            machine distante est en Anglais ou en Françcais.
+            :PRE: -
+            :POST: -
+            """
+            # Utiliser la commande shell pour déterminer si le bureau est en français ou en anglais sur le PC distant
+            result_temp = c.run("test -d ~/Bureau && echo Bureau || (test -d ~/Desktop && echo Desktop || echo Unknown)",
+                           hide=True)
+            bureau_desktop_temp = result_temp.stdout.strip()
+            return f"/{bureau_desktop_temp}"
+
+        bureau_desktop = determine_desktop()
+        self.path = "/home/" + self.user + bureau_desktop
+        # Vérifier sur le PC distant
+        result = c.run(f"test -d {self.path}/{name_of_file} && echo 1 || echo 0", hide=True)
+        if result.stdout.strip() == '0':
+            # Le dossier n'existe pas sur le PC distant, créons-le
+            c.run(f"mkdir -p {self.path}/{name_of_file}")
+            print(f"Le dossier '{name_of_file}' a été créé sur le PC distant dans '{self.path}'.")
+
+        self.path += "/" + name_of_file
+        time.sleep(2.5)
+
     def menu_main(self, c):
+        """
+        Fonction qui va être appelée afin de proposer le menu principal et qui permet
+        à l'utilisateur de faire un choix.
+        :PRE: - c : L'instance de connection SSH de l'objet 'Connection' provenant de la librairie 'Fabric'
+        :POST: -
+        """
+        self.creation_and_checking_common_file(c)
         self.clear()
-        # self.running_shell(c, self.path, self.shell)
-        print(f"Vous voici dans le Menu Principal, vous êtes connecté en SSH.\n"
+        if self.default:
+            self.running_shell(c, self.path_for_shell, self.shell)
+
+        if self.default:
+            print(f"+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
+                  f"\n+ Vous pouvez également vous connecter à une machine manuellement                               +\n"
+                  "+ Il vous faut introduire le paramètre '-m' ou bien '--manual_co' derrière le nom du programme  +\n"
+                  "+ lorsque vous le lancez via la concole                                                         +\n"
+                  "+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n")
+        print(f"Vous voici dans le Menu Principal, vous êtes connecté en SSH.\n\n"
               f"Que voulez vous faire parmi : \n"
               f"{self.choice[0]}. Récuperer les fichiers sur la machine distante\n"
               f"{self.choice[1]}. Envoyer des fichiers sur la machine distante\n"
@@ -69,15 +135,28 @@ class SSH_connection:
         print(self.the_choice)
 
     def running_shell(self, c, pth, sh):
+        """
+        Fonction qui va executer un fichier shell se trouvant sur la machine distante et qui va
+        récupérer des données systèmes
+        :PRE: - c : L'instance de connection SSH de l'objet 'Connection' provenant de la librairie 'Fabric'
+              - pth : Le chemin où se trouve le script shelle sur la machine distante par défaut
+              - sh : Le nom du fichier shell à éxécuter
+        :POST: -
+        """
         print(f"En cours de récupération des données système de la machine distante...")
         result = c.run(f"cd {pth} && ./{sh}", hide="stdout")
         self.clear()
         print(result.stdout)
         self.vrai = False
 
-
-    # Après utilisationde la fonction get()
-    def put_all_files_in(self):
+    @staticmethod
+    def put_all_files_in():
+        """
+        Fonction qui met tous les fichiers du répertoire courant (sauf 'main.py', '.idea', '.git' et 'dossier-commun')
+        dans 'dossier-commun' sur machine hôte
+        :PRE: -
+        :POST: -
+        """
         # Définir le répertoire courant
         current_rep = os.getcwd()
 
@@ -101,8 +180,14 @@ class SSH_connection:
                 os.rename(file_path, destination)
                 print(f"Le fichier '{file}' a été déplacé vers '{dossier_commun}'.")
 
-    # Lorsque la fonction put() est appelée
-    def get_all_files_in(self):
+    @staticmethod
+    def get_all_files_in():
+        """
+        Fonction qui récupère tous les fichiers de 'dossier-commun'
+        et les mets dans le répertoire courant de la machine hôte
+        :PRE: -
+        :POST: -
+        """
         # Définir le répertoire courant
         current_rep = os.getcwd()
 
@@ -123,6 +208,12 @@ class SSH_connection:
             print(f"Le dossier '{dossier_commun}' n'existe pas.")
 
     def get_files(self, c, remote_file):
+        """
+        Fonction qui va aller chercher le fichier spécifier sur la machine distante.
+        :PRE: - c : L'instance de connection SSH de l'objet 'Connection' provenant de la librairie 'Fabric'
+              - remote_file : Le nom du fichier à récupérer
+        :POST: -
+        """
         try:
             c.get(f"/home/user/Bureau/dossier-commun/{remote_file}", local=None, preserve_mode=True)
             print("Allez voir votre dossier")
@@ -130,15 +221,27 @@ class SSH_connection:
         except OSError as o:
             print(f"Erreur lors du téléchargement : {o}")
 
-
     def send_files(self, c, local_files):
+        """
+        Fonction qui envoi les fichiers du répertoire courant de la machine hôte
+        (sauf 'main.py', '.idea', '.git' et 'dossier-commun') dans 'dossier-commun' de la machine distante.
+        :PRE: - c : L'instance de connection SSH de l'objet 'Connection' provenant de la librairie 'Fabric'
+              - local_files : Le nom du fichier à envoyer
+        :POST: -
+        """
         try:
             c.put(local_files, self.remote_path_common_files)
         except OSError as o:
             print(f"Erreur lors du téléchargement : {o}")
 
-
     def iterative_send_files(self, c):
+        """
+        Fonction qui va parcourir le répertoire courant de la machine hôte et appeler itérativement
+        la fonction send_files() qui va à son tour ajouter les fichiers à 'dossier-commun'.
+        de la machine distante
+        :PRE: - c : L'instance de connection SSH de l'objet 'Connection' provenant de la librairie 'Fabric'
+        :POST: -
+        """
         self.get_all_files_in()
 
         # Définir le répertoire courant
@@ -159,6 +262,14 @@ class SSH_connection:
         self.put_all_files_in()
 
     def iterative_get_files(self, c, remote_path):
+        """
+        Fonction qui va parcourir le répertoire courant de la machine distante et appeler itérativement
+        la fonction get_files() qui va à son tour recupérer les fichiers de 'dossier-commun'
+        de la machine distante pour les mettre dans 'dossier-commun' de la machine hôte.
+        :PRE: - c : L'instance de connection SSH de l'objet 'Connection' provenant de la librairie 'Fabric'
+              - remote_path : Le chemin du répertoire des fichiers à récupérer sur la machine distante
+        :POST: -
+        """
         result = c.run(f"ls {remote_path}", hide=True)
 
         list_files = result.stdout.split()
@@ -168,14 +279,12 @@ class SSH_connection:
 
         self.put_all_files_in()
 
-
     def run(self):
-        """with Connection(host='192.168.10.133', user='user') as conn:
-            result = conn.run('echo Hello, Fabric!')
-            print(result.stdout)
-            result = conn.run("ls -la", hide=True)
-            print(result.stdout)"""
-
+        """
+        Fonction principale du programme qui est appelée en première et qui appelle à son tour les autres fonctions.
+        :PRE: -
+        :POST: -
+        """
         parser = argparse.ArgumentParser()
         parser.add_argument("-m", "--manual_co", help="Sert à lancer le programme en mode connection manuel", action="store_true")
         args = parser.parse_args()
@@ -186,34 +295,31 @@ class SSH_connection:
             self.default = True
         self.menu_connection()
         try:
-            # Créez une connexion SSH en utilisant le mot de passe
+            # Créer une connexion SSH en utilisant le mot de passe
             with Connection(host=self.host, user=self.user, connect_kwargs={'password': self.password}) as conn:
-                # Exécutez la commande 'ls -a' à distance
-                # result = conn.run('ls -a', hide=True)
-                # Affichez le résultat
-                # print(f'Résultat de la commande "ls -a" sur {self.host}:\n{result.stdout}')
-
                 while self.vrai:
                     self.menu_main(conn)
                     if self.the_choice == self.choice[0]:
-                        print("Tu veux Récup des fichiers ? ")
-                        self.iterative_get_files(conn, self.remote_path)
+                        print("Vous avez decidé de récupérer les fichiers provenant de la machine distante.")
+                        self.iterative_get_files(conn, self.remote_path_common_files)
                         self.vrai = False
                     elif self.the_choice == self.choice[1]:
-                        print("AAAAAh tu veux envoyer des fichiers sur l'autre")
+                        print("Vous avez décidé d'envoyer des fichiers sur la machine distante")
                         self.iterative_send_files(conn)
                         self.vrai = False
                     elif self.the_choice == self.choice[2]:
+                        print("Vous avez décidé de quitter, au revoir !")
                         self.vrai = False
                     else:
-                        print("Entre un nombre valide !")
-                        self.vrai = False
+                        print("Entrez un nombre valide !")
+                        self.vrai =  True
 
         except TimeoutError:
             print("Temps dépassé, réessayez svp")
             input("Appuie sur une touche pour continuer...")
             self.run()
 
+
 if __name__ == "__main__":
-    ssh_co = SSH_connection()
+    ssh_co = SSHConnection()
     ssh_co.run()
