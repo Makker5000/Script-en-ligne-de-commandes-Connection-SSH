@@ -59,6 +59,20 @@ class SSHConnection:
             self.user = input("> Votre Username : ")
             self.password = getpass("> Et votre mot de passe : ")
 
+    @staticmethod
+    def determine_desktop(c):
+        """
+        Fonction qui va déterminer si le système d'exploitation de la
+        machine distante est en Anglais ou en Françcais.
+        :PRE: -
+        :POST: -
+        """
+        # Utiliser la commande shell pour déterminer si le bureau est en français ou en anglais sur le PC distant
+        result_temp = c.run("test -d ~/Bureau && echo Bureau || (test -d ~/Desktop && echo Desktop || echo Unknown)",
+                            hide=True)
+        bureau_desktop_temp = result_temp.stdout.strip()
+        return f"/{bureau_desktop_temp}"
+
     def creation_and_checking_common_file(self, c):
         """
         Fonction qui vérifie si le dossier 'dossier-commun' existe sur la machine hôte et sur la machine distante.
@@ -67,13 +81,13 @@ class SSHConnection:
         :POST: -
         """
         # Déterminer si le bureau est en français ou en anglais
-        if os.path.exists(os.path.join(os.path.expanduser('~'), 'Bureau')):
+        """if os.path.exists(os.path.join(os.path.expanduser('~'), 'Bureau')):
             bureau_desktop = '/Bureau'
         elif os.path.exists(os.path.join(os.path.expanduser('~'), 'Desktop')):
             bureau_desktop = '/Desktop'
         else:
             print("Impossible de déterminer le chemin du bureau.")
-            return
+            return"""
 
         name_of_file = "dossier-commun"
         self.path_to_local_file = os.path.join(os.getcwd(), name_of_file)
@@ -82,20 +96,7 @@ class SSHConnection:
             os.makedirs(self.path_to_local_file)
             print(f"Le dossier '{self.path_to_local_file}' a été créé sur l'hôte local.")
 
-        def determine_desktop():
-            """
-            Fonction qui va déterminer si le système d'exploitation de la
-            machine distante est en Anglais ou en Françcais.
-            :PRE: -
-            :POST: -
-            """
-            # Utiliser la commande shell pour déterminer si le bureau est en français ou en anglais sur le PC distant
-            result_temp = c.run("test -d ~/Bureau && echo Bureau || (test -d ~/Desktop && echo Desktop || echo Unknown)",
-                           hide=True)
-            bureau_desktop_temp = result_temp.stdout.strip()
-            return f"/{bureau_desktop_temp}"
-
-        bureau_desktop = determine_desktop()
+        bureau_desktop = self.determine_desktop(c)
         self.path = "/home/" + self.user + bureau_desktop
         # Vérifier sur le PC distant
         result = c.run(f"test -d {self.path}/{name_of_file} && echo 1 || echo 0", hide=True)
@@ -216,7 +217,6 @@ class SSHConnection:
         """
         try:
             c.get(f"/home/user/Bureau/dossier-commun/{remote_file}", local=None, preserve_mode=True)
-            print("Allez voir votre dossier")
             self.put_all_files_in()
         except OSError as o:
             print(f"Erreur lors du téléchargement : {o}")
@@ -252,7 +252,6 @@ class SSHConnection:
 
         # Parcourir tous les fichiers du répertoire courant
         for file in os.listdir(current_rep):
-            chemin_fichier = os.path.join(current_rep, file)
             # Vérifier si le fichier ne fait pas partie des exclusions
             if file not in exclusions:
                 # Déplacer le fichier vers le dossier 'dossier-commun'
@@ -265,7 +264,8 @@ class SSHConnection:
         """
         Fonction qui va parcourir le répertoire courant de la machine distante et appeler itérativement
         la fonction get_files() qui va à son tour recupérer les fichiers de 'dossier-commun'
-        de la machine distante pour les mettre dans 'dossier-commun' de la machine hôte.
+        de la machine distante pour les mettre dans 'dossier-commun' de la machine hôte tout en vérifiant si ils
+        n'existent pas déjà.
         :PRE: - c : L'instance de connection SSH de l'objet 'Connection' provenant de la librairie 'Fabric'
               - remote_path : Le chemin du répertoire des fichiers à récupérer sur la machine distante
         :POST: -
@@ -275,7 +275,11 @@ class SSHConnection:
         list_files = result.stdout.split()
 
         for file in list_files:
-            self.get_files(c, file)
+            current_rep = os.path.join(os.getcwd(), 'dossier-commun', file)
+            if not os.path.exists(current_rep):
+                self.get_files(c, file)
+            else:
+                return "Erreur"
 
         self.put_all_files_in()
 
@@ -300,12 +304,14 @@ class SSHConnection:
                 while self.vrai:
                     self.menu_main(conn)
                     if self.the_choice == self.choice[0]:
-                        print("Vous avez decidé de récupérer les fichiers provenant de la machine distante.")
+                        print("Vous avez decidé de récupérer les fichiers provenant de la machine distante.\n")
                         self.iterative_get_files(conn, self.remote_path_common_files)
+                        print("\nAllez voir votre répertoire 'dossier-commun' sur votre machine hôte.")
                         self.vrai = False
                     elif self.the_choice == self.choice[1]:
-                        print("Vous avez décidé d'envoyer des fichiers sur la machine distante")
+                        print("Vous avez décidé d'envoyer des fichiers sur la machine distante.\n")
                         self.iterative_send_files(conn)
+                        print("\nAllez voir le répertoire 'dossier-commun' sur la machine distante (si vous le pouvez).")
                         self.vrai = False
                     elif self.the_choice == self.choice[2]:
                         print("Vous avez décidé de quitter, au revoir !")
