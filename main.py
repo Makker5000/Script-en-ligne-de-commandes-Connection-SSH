@@ -80,15 +80,6 @@ class SSHConnection:
         :PRE: - c : L'instance de connection SSH de l'objet 'Connection' provenant de la librairie 'Fabric'
         :POST: -
         """
-        # Déterminer si le bureau est en français ou en anglais
-        """if os.path.exists(os.path.join(os.path.expanduser('~'), 'Bureau')):
-            bureau_desktop = '/Bureau'
-        elif os.path.exists(os.path.join(os.path.expanduser('~'), 'Desktop')):
-            bureau_desktop = '/Desktop'
-        else:
-            print("Impossible de déterminer le chemin du bureau.")
-            return"""
-
         name_of_file = "dossier-commun"
         self.path_to_local_file = os.path.join(os.getcwd(), name_of_file)
         # Vérifier sur l'hôte local
@@ -168,7 +159,7 @@ class SSHConnection:
             print(f"Le dossier '{dossier_commun}' a été créé.")
 
         # Liste des fichiers et dossiers à exclure
-        exclusions = {'main.py', '.idea', '.git', 'dossier-commun'}
+        exclusions = {'main.py', '.idea', '.git', 'dossier-commun', 'UnitTest.py', '__pycache__'}
 
         # Parcourir tous les fichiers du répertoire courant
         for file in os.listdir(current_rep):
@@ -324,13 +315,11 @@ class SSHConnection:
                         print("Vous avez decidé de récupérer les fichiers provenant de la machine distante.\n")
                         self.iterative_get_files(conn, self.remote_path_common_files)
                         print("\nAllez voir votre répertoire 'dossier-commun' sur votre machine hôte.")
-                        #self.vrai = False
                         self.is_continuing()
                     elif self.the_choice == self.choice[1]:
                         print("Vous avez décidé d'envoyer des fichiers sur la machine distante.\n")
                         self.iterative_send_files(conn)
                         print("\nAllez voir le répertoire 'dossier-commun' sur la machine distante (si vous le pouvez).")
-                        #self.vrai = False
                         self.is_continuing()
                     elif self.the_choice == self.choice[2]:
                         print("Vous avez décidé de quitter, au revoir !")
