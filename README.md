@@ -17,5 +17,6 @@ et une machine distante (une VM dans ce cas-ci pour l'exemple mais cela pourrait
 - Quitter le programme
 
 ### Choses à ne pas faire :
-Le programme accepte dans le sens _machine hôte --> machine distante_ de ré-envoyer les même fichier (ayant le même nom).
-Le programme N'accepte PAS 
+- Le programme accepte dans le sens _machine hôte --> machine distante_ de ré-envoyer les même fichier (ayant le même nom).
+- Le programme **N'accepte PAS** de re-récupérer les fichiers de la machine distante ayant les mêmes noms (que ceux de 'dossier-commun' de votre machine hôte)
+  
