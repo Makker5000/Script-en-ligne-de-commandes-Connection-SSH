@@ -283,6 +283,23 @@ class SSHConnection:
 
         self.put_all_files_in()
 
+    def is_continuing(self):
+        yes = ['oui', 'o']
+        no = ['no', 'n']
+        finis = False
+        print("\nVoulez-vous faire d'autres opérations ? (o/n)")
+        while not finis:
+            choice = input(">> ")
+            if choice.lower() == yes[0] or choice.lower() == yes[1]:
+                self.vrai = True
+                finis = True
+            elif choice.lower() == no[0] or choice.lower() == no[1]:
+                self.vrai = False
+                print("Au revoir !")
+                finis = True
+            else:
+                finis = False
+
     def run(self):
         """
         Fonction principale du programme qui est appelée en première et qui appelle à son tour les autres fonctions.
@@ -307,22 +324,24 @@ class SSHConnection:
                         print("Vous avez decidé de récupérer les fichiers provenant de la machine distante.\n")
                         self.iterative_get_files(conn, self.remote_path_common_files)
                         print("\nAllez voir votre répertoire 'dossier-commun' sur votre machine hôte.")
-                        self.vrai = False
+                        #self.vrai = False
+                        self.is_continuing()
                     elif self.the_choice == self.choice[1]:
                         print("Vous avez décidé d'envoyer des fichiers sur la machine distante.\n")
                         self.iterative_send_files(conn)
                         print("\nAllez voir le répertoire 'dossier-commun' sur la machine distante (si vous le pouvez).")
-                        self.vrai = False
+                        #self.vrai = False
+                        self.is_continuing()
                     elif self.the_choice == self.choice[2]:
                         print("Vous avez décidé de quitter, au revoir !")
                         self.vrai = False
                     else:
                         print("Entrez un nombre valide !")
-                        self.vrai =  True
+                        self.vrai = True
 
         except TimeoutError:
             print("Temps dépassé, réessayez svp")
-            input("Appuie sur une touche pour continuer...")
+            input("Appuyez sur une touche pour continuer et ressayer...")
             self.run()
 
 
