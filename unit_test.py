@@ -30,20 +30,35 @@ class TestSSHConnection(unittest.TestCase):
         self.assertEqual(self.ssh_connection.user, 'user')
         self.assertEqual(self.ssh_connection.password, 'user123')
 
-    @patch('fabric.Connection.run')
-    def test_creation_and_checking_common_file(self, mock_run):
-        # Teste la fonction determine_desktop à partir du moment où elle est appelée dans creation_and_checking_common_file
-        with patch.object(self.ssh_connection, 'determine_desktop', return_value='/Bureau'):
-            # Calling the creation_and_checking_common_file method
-            self.ssh_connection.creation_and_checking_common_file(MagicMock())
-
-        mock_run.assert_called_with("test -d /home/user/Bureau/dossier-commun && echo 1 || echo 0", hide=True)
-
     def test_creation_and_checking_common_file(self):
             # Teste la fonction creation_and_checking_common_file()
             with patch('fabric.Connection.run') as mock_run:
                 mock_run.return_value.stdout.strip.return_value = 'Bureau'
                 self.ssh_connection.creation_and_checking_common_file(MagicMock())
+
+    @patch('fabric.Connection')
+    def test_iterative_get_files(self, mock_connection):
+        # Configurer le comportement du mock
+        mock_conn_instance = mock_connection.return_value
+        mock_run_result = MagicMock()
+        mock_run_result.stdout.split.return_value = ['file1.txt', 'file2.txt']
+        mock_conn_instance.run.return_value = mock_run_result
+
+        # Instancier votre classe (ou la classe contenant la fonction iterative_get_files)
+        your_instance = SSHConnection()
+
+        # Appeler la fonction testée
+        your_instance.iterative_get_files(mock_conn_instance, '/home/user/Bureau/dossier-commun/')
+
+        # Vérifier l'utilisation correcte du mock
+        mock_connection.assert_called_once_with(host='192.168.10.133', user='user',
+                                                connect_kwargs={'password': 'user123'})
+        mock_conn_instance.run.assert_called_once_with('ls /home/user/Bureau/dossier-commun/', hide=True)
+        mock_conn_instance.get.assert_called_with('/home/user/Bureau/dossier-commun/file1.txt', local=None,
+                                                  preserve_mode=True)
+
+    # Ajouter d'autres tests au besoin
+    # ...
 
 
 if __name__ == '__main__':

@@ -1,4 +1,4 @@
-from fabric import Connection,Config
+from fabric import Connection  # Config
 from getpass import getpass
 import os
 import argparse
@@ -7,6 +7,11 @@ import time
 
 class SSHConnection:
     def __init__(self):
+        """
+        Fonction qui définit des variables globale à toute la classe.
+        :PRE: -
+        :POST: définition des variables globales
+        """
         self.host = ''
         self.user = ''
         self.password = ''
@@ -136,7 +141,7 @@ class SSHConnection:
         :POST: -
         """
         print(f"En cours de récupération des données système de la machine distante...")
-        result = c.run(f"cd {pth} && ./{sh}", hide="stdout")
+        result = c.run(f"cd {pth} && ./{sh}", hide="stdout", encoding='utf-8')
         self.clear()
         print(result.stdout)
         self.vrai = False
@@ -159,7 +164,7 @@ class SSHConnection:
             print(f"Le dossier '{dossier_commun}' a été créé.")
 
         # Liste des fichiers et dossiers à exclure
-        exclusions = {'main.py', '.idea', '.git', 'dossier-commun', 'UnitTest.py', '__pycache__'}
+        exclusions = {'main.py', '.idea', '.git', 'dossier-commun', 'unit_test.py', '__pycache__'}
 
         # Parcourir tous les fichiers du répertoire courant
         for file in os.listdir(current_rep):
@@ -239,7 +244,7 @@ class SSHConnection:
         current_rep = os.getcwd()
 
         # Liste des fichiers et dossiers à exclure
-        exclusions = {'main.py', '.idea', '.git', 'dossier-commun'}
+        exclusions = {'main.py', '.idea', '.git', 'dossier-commun', 'unit_test.py', '__pycache__'}
 
         # Parcourir tous les fichiers du répertoire courant
         for file in os.listdir(current_rep):
@@ -258,7 +263,7 @@ class SSHConnection:
         de la machine distante pour les mettre dans 'dossier-commun' de la machine hôte tout en vérifiant si ils
         n'existent pas déjà.
         :PRE: - c : L'instance de connection SSH de l'objet 'Connection' provenant de la librairie 'Fabric'
-              - remote_path : Le chemin du répertoire des fichiers à récupérer sur la machine distante
+              - remote_path : Le chemin du répertoire des fichiers à récupérer sur la machine distante ('/home/user/Bureau/dossier-commun/')
         :POST: -
         """
         result = c.run(f"ls {remote_path}", hide=True)
@@ -337,3 +342,14 @@ class SSHConnection:
 if __name__ == "__main__":
     ssh_co = SSHConnection()
     ssh_co.run()
+
+
+"""
+Chercher après librairie de connection SSH Factice pour faire tests unitaires (connection hardcodée qui fonctionne,
+vérification sur la méthode de création de dossier, etc)
+Ne pas hesité à diviser mon code pour ne pas avoir des problèmes de test sur des méthodes qui utilisent une connection SSH.
+Faire tests unitaires sur diverses méthodes, en faire 5 ou 6 qui test correctement et qui réussisse à tout les coups.
+SOLUTIONS ALTERNATIVES pour les tests unitaires qui ratent à cause de la connection SSH :
+    - Soit je met une vérification si c'est un test unitaire alors certaines fonctionnalités ne sont pas testées
+    - Soit fais les tests unitaires uniquement quand la machine distante par défaut est allumée et connectée.
+"""
