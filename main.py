@@ -31,11 +31,12 @@ class SSHConnection:
         Fonction ayant les informations de connexion par défaut. Si pas de paramètre passé lors de
         l'éxécution du programme
         :PRE: -
-        :POST: -
+        :POST: Définis des valeurs de connection par défaut
         """
         self.host = '192.168.10.133'
         self.user = 'user'
         self.password = 'user123'
+        return "Valeurs par défaut définies"
 
     @staticmethod
     def clear() -> None:
@@ -57,20 +58,22 @@ class SSHConnection:
         if self.default:
             print("Vous avez décidé de vous connecter à la machine par défaut...")
             time.sleep(2)
-            self.default_values()
+            result = self.default_values()
+            return result
         else:
             print("Vous avez décidé de vous connecter en manuel")
             self.host = input("> L'adresse IP de l'appareil auquel vous voulez vous ¨connecter : ")
             self.user = input("> Votre Username : ")
             self.password = getpass("> Et votre mot de passe : ")
+            return "Valeurs manuelle définies"
 
     @staticmethod
     def determine_desktop(c):
         """
         Fonction qui va déterminer si le système d'exploitation de la
-        machine distante est en Anglais ou en Françcais.
-        :PRE: -
-        :POST: -
+        machine distante est en Anglais ou en Français.
+        :PRE: - c : Une instance de l'objet Connection
+        :POST: Return : Le nom de dossier du bureau distant
         """
         # Utiliser la commande shell pour déterminer si le bureau est en français ou en anglais sur le PC distant
         result_temp = c.run("test -d ~/Bureau && echo Bureau || (test -d ~/Desktop && echo Desktop || echo Unknown)",
@@ -136,20 +139,33 @@ class SSHConnection:
         Fonction qui va executer un fichier shell se trouvant sur la machine distante et qui va
         récupérer des données systèmes
         :PRE: - c : L'instance de connection SSH de l'objet 'Connection' provenant de la librairie 'Fabric'
-              - pth : Le chemin où se trouve le script shelle sur la machine distante par défaut
+              - pth : Le chemin où se trouve le script shell sur la machine distante par défaut
               - sh : Le nom du fichier shell à éxécuter
         :POST: -
         """
-        print(f"En cours de récupération des données système de la machine distante...")
-        result = c.run(f"cd {pth} && ./{sh}", hide="stdout", encoding='utf-8')
-        self.clear()
-        print(result.stdout)
-        self.vrai = False
+        # Vérification du chemin
+        path_parts = pth.split("/")
+        if len(path_parts) == 5 and path_parts[0] == "" and path_parts[1] == "home" and path_parts[4] == "dossier-commun":
+            print("Le chemin spécifié respecte le format attendu.")
+
+            # Vérification du nom du fichier shell
+            if sh != "test.sh":
+                print("Le nom du fichier shell doit être 'test.sh'.")
+                return "Pas le bon script shell"
+            else:
+                print(f"En cours de récupération des données système de la machine distante...")
+                result = c.run(f"cd {pth} && ./{sh}", hide="stdout", encoding='utf-8')
+                self.clear()
+                print(result.stdout)
+                self.vrai = False
+        else:
+            print("Le chemin spécifié ne respecte pas le format attendu.")
+            return "Pas le bon chemin"
 
     @staticmethod
     def put_all_files_in():
         """
-        Fonction qui met tous les fichiers du répertoire courant (sauf 'main.py', '.idea', '.git' et 'dossier-commun')
+        Fonction qui met tous les fichiers du répertoire courant (sauf 'main.py', '.idea', '.git' et 'dossier-commun', 'unit_test.py')
         dans 'dossier-commun' sur machine hôte
         :PRE: -
         :POST: -
@@ -211,11 +227,16 @@ class SSHConnection:
               - remote_file : Le nom du fichier à récupérer
         :POST: -
         """
-        try:
-            c.get(f"/home/user/Bureau/dossier-commun/{remote_file}", local=None, preserve_mode=True)
-            self.put_all_files_in()
-        except OSError as o:
-            print(f"Erreur lors du téléchargement : {o}")
+        if '.' not in remote_file:
+            #print("Le nom du fichier ne contient pas d'extension.")
+            raise OSError("Le nom du fichier ne contient pas d'extension.")
+        else:
+            try:
+                c.get(f"/home/user/Bureau/dossier-commun/{remote_file}", local=None, preserve_mode=True)
+                print(f"Fichier retourné : {remote_file}")
+                #self.put_all_files_in()
+            finally:
+                return remote_file
 
     def send_files(self, c, local_files):
         """
@@ -263,7 +284,7 @@ class SSHConnection:
         de la machine distante pour les mettre dans 'dossier-commun' de la machine hôte tout en vérifiant si ils
         n'existent pas déjà.
         :PRE: - c : L'instance de connection SSH de l'objet 'Connection' provenant de la librairie 'Fabric'
-              - remote_path : Le chemin du répertoire des fichiers à récupérer sur la machine distante ('/home/user/Bureau/dossier-commun/')
+              - remote_path : Les noms des fichiers à récupérer sur la machine distante ('quelque_chose.txt')
         :POST: -
         """
         result = c.run(f"ls {remote_path}", hide=True)
@@ -301,6 +322,7 @@ class SSHConnection:
         Fonction principale du programme qui est appelée en première et qui appelle à son tour les autres fonctions.
         :PRE: -
         :POST: -
+        :RAISE: TimeoutError si jamais le temps est dépassé
         """
         parser = argparse.ArgumentParser()
         parser.add_argument("-m", "--manual_co", help="Sert à lancer le programme en mode connection manuel", action="store_true")
@@ -342,14 +364,3 @@ class SSHConnection:
 if __name__ == "__main__":
     ssh_co = SSHConnection()
     ssh_co.run()
-
-
-"""
-Chercher après librairie de connection SSH Factice pour faire tests unitaires (connection hardcodée qui fonctionne,
-vérification sur la méthode de création de dossier, etc)
-Ne pas hesité à diviser mon code pour ne pas avoir des problèmes de test sur des méthodes qui utilisent une connection SSH.
-Faire tests unitaires sur diverses méthodes, en faire 5 ou 6 qui test correctement et qui réussisse à tout les coups.
-SOLUTIONS ALTERNATIVES pour les tests unitaires qui ratent à cause de la connection SSH :
-    - Soit je met une vérification si c'est un test unitaire alors certaines fonctionnalités ne sont pas testées
-    - Soit fais les tests unitaires uniquement quand la machine distante par défaut est allumée et connectée.
-"""
